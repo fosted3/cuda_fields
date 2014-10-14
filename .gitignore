@@ -1,29 +1,15 @@
 # Object files
-*.o
-*.ko
-*.obj
-*.elf
+build/*
 
-# Precompiled Headers
-*.gch
-*.pch
+# Data output
+*.csv
+*.txt
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
+# Videos
+*.mkv
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
+# Binaries
+bin/*
 
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
+# Images
+img/*
