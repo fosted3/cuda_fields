@@ -101,10 +101,8 @@ void init(char *settings_file, settings &config, float *z, bool *read_only)
 			if (token != NULL) { f = atof(token); }
 			else { break; }
 			x = a;
-			//printf("yline %u %u %u %f\n", a, b, c, f);
 			for (y = b; y <= c; y++)
 			{
-				//printf("(%u, %u)\n", x, y);
 				assert(y < config.n);
 				read_only[x+(y*config.n)] = true;
 				z[x+(y*config.n)] = f;
@@ -125,10 +123,8 @@ void init(char *settings_file, settings &config, float *z, bool *read_only)
 			if (token != NULL) { f = atof(token); }
 			else { break; }
 			y = a;
-			//printf("xline %u %u %u %f\n", a, b, c, f);
 			for (x = b; x <= c; x++)
 			{
-				//printf("(%u, %u)\n", x, y);
 				assert(x < config.n);
 				read_only[x+(y*config.n)] = true;
 				z[x+(y*config.n)] = f;
@@ -151,14 +147,12 @@ void init(char *settings_file, settings &config, float *z, bool *read_only)
 			token = strtok(NULL, delimiter);
 			if (token != NULL) { f = atof(token); }
 			else { break; }
-			//printf("rectangle %u %u %u %u %f\n", a, b, c, d, f);
 			assert(a < c);
 			assert(b < d);
 			for (x = a; x <= c; x++)
 			{
 				for (y = b; y <= d; y++)
 				{
-					//printf("(%u, %u)\n", x, y);
 					assert(x < config.n);
 					assert(y < config.n);
 					read_only[x+(y*config.n)] = true;
@@ -185,8 +179,6 @@ int main(int argc, char **argv)
 	config.block_dim = 0;
 	char *settings_file = argv[1];
 	read_config(settings_file, config);
-	//printf("iterations: %u, n: %u, block_dim: %u\n", config.iterations, config.n, config.block_dim);
-	//exit(0);
 	dim3 block(config.block_dim, config.block_dim);
 	dim3 grid((int)ceil(config.n/block.x),(int)ceil(config.n/block.y));
 	unsigned int float_mem = config.n * config.n * sizeof(float);
@@ -194,35 +186,33 @@ int main(int argc, char **argv)
 	float *z = (float *)malloc(float_mem);
 	bool *read_only = (bool *)malloc(bool_mem);
 	init(settings_file, config, z, read_only);
-	//set_initial(z, config.n);
-	//set_reserved(read_only, config.n);
-	/*for (unsigned int y = 0; y < config.n; y++)
-	{
-		for (unsigned int x = 0; x < config.n; x++)
-		{
-			printf("%06.2f ", z[x+(y*config.n)]);
-			if (read_only[x+(y*config.n)]) { printf("t"); }
-			else { printf("f"); }
-			if (x == config.n - 1) { printf("\n"); }
-			else { printf(", "); }
-		}
-	}
-	exit(1);*/
 	float *d_z_1;
 	float *d_z_2;
 	bool *d_read_only;
+	cudaEvent_t start;
+	cudaEvent_t stop;
+	float compute_time;
+	assert(cudaSuccess == cudaEventCreate(&start));
+	assert(cudaSuccess == cudaEventCreate(&stop));
 	assert(cudaSuccess == cudaMalloc((void**) &d_z_1, float_mem));
 	assert(cudaSuccess == cudaMalloc((void**) &d_z_2, float_mem));
 	assert(cudaSuccess == cudaMalloc((void**) &d_read_only, bool_mem));
 	assert(cudaSuccess == cudaMemcpy(d_z_1, z, float_mem, cudaMemcpyHostToDevice));
 	assert(cudaSuccess == cudaMemcpy(d_read_only, read_only, bool_mem, cudaMemcpyHostToDevice));
+	assert(cudaSuccess == cudaEventRecord(start, 0));
 	for (unsigned int i = 0; i < config.iterations; i++)
 	{
 		iterate<<<grid, block>>>(d_z_1, d_z_2, d_read_only, config.n);
+		cudaThreadSynchronize();
 		iterate<<<grid, block>>>(d_z_2, d_z_1, d_read_only, config.n);
+		cudaThreadSynchronize();
 		if (i % 500 == 0) { printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bIterations: %u", i); }
 	}
+	assert(cudaSuccess == cudaEventRecord(stop, 0));
+	assert(cudaSuccess == cudaEventSynchronize(stop));
+	assert(cudaSuccess == cudaEventElapsedTime(&compute_time, start, stop));
 	printf("\n");
+	printf("Compute time: %fms\n", compute_time);
 	assert(cudaSuccess == cudaMemcpy(z, d_z_1, float_mem, cudaMemcpyDeviceToHost));
 	FILE *handle = fopen(argv[2], "w");
 	assert(handle != NULL);
