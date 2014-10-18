@@ -56,32 +56,32 @@ unsigned int __max(unsigned int a, unsigned int b)
 	return b;
 }
 
-__global__ void iterate2d(float *from, float *to, bool *read_only, unsigned int N)
+__global__ void iterate2d(float *from, float *to, bool *read_only, unsigned int yshift, unsigned int N)
 {
 	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
 	unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
-	if (read_only[x+(y*N)] == false && x != 0 && y != 0 && x != (N - 1) && y != (N - 1))
+	if (read_only[x+(y<<yshift)] == false && x != 0 && y != 0 && x != (N - 1) && y != (N - 1))
 	{
-		to[x+(y*N)] = (from[(x+1)+((y+1)*N)] + from[(x+1)+((y-1)*N)] + from[(x-1)+((y+1)*N)] + from[(x-1)+((y-1)*N)]) / 4;
+		to[x+(y<<yshift)] = (from[(x+1)+((y+1)<<yshift)] + from[(x+1)+((y-1))] + from[(x-1)+((y+1)<<yshift)] + from[(x-1)+((y-1)<<yshift)]) / 4;
 	}
 	else
 	{
-		to[x+(y*N)] = from[x+(y*N)];
+		to[x+(y<<yshift)] = from[x+(y<<yshift)];
 	}
 }
 
-__global__ void iterate3d(float *from, float *to, bool *read_only, unsigned int N, unsigned int NN)
+__global__ void iterate3d(float *from, float *to, bool *read_only, unsigned int yshift, unsigned int zshift, unsigned int N, unsigned int NN)
 {
 	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
 	unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
 	unsigned int z = blockIdx.z * blockDim.z + threadIdx.z;
-	if (read_only[x+(y*N)+(z*NN)] == false && x != 0 && y != 0 && z != 0 && x != (N - 1) && y != (N - 1) && z != (N - 1))
+	if (read_only[x+(y<<yshift)+(z<<zshift)] == false && x != 0 && y != 0 && z != 0 && x != (N - 1) && y != (N - 1) && z != (N - 1))
 	{
-		to[x+(y*N)+(z*NN)] = (from[(x+1)+((y+1)*N)+((z+1)*NN)] + from[(x+1)+((y+1)*N)+((z-1)*NN)] + from[(x+1)+((y-1)*N)+((z+1)*NN)] + from[(x+1)+((y-1)*N)+((z-1)*NN)] + from[(x-1)+((y+1)*N)+((z+1)*NN)] + from[(x-1)+((y+1)*N)+((z-1)*NN)] + from[(x-1)+((y-1)*N)+((z+1)*NN)] + from[(x-1)+((y-1)*N)+((z-1)*NN)]) / 8;
+		to[x+(y<<yshift)+(z<<zshift)] = (from[(x+1)+((y+1)<<yshift)+((z+1)<<zshift)] + from[(x+1)+((y+1)<<yshift)+((z-1)<<zshift)] + from[(x+1)+((y-1)<<yshift)+((z+1)<<zshift)] + from[(x+1)+((y-1)<<yshift)+((z-1)<<zshift)] + from[(x-1)+((y+1)<<yshift)+((z+1)<<zshift)] + from[(x-1)+((y+1)<<yshift)+((z-1)<<zshift)] + from[(x-1)+((y-1)<<yshift)+((z+1)<<zshift)] + from[(x-1)+((y-1)<<yshift)+((z-1)<<zshift)]) / 8;
 	}
 	else
 	{
-		to[x+(y*N)+(z*NN)] = from[x+(y*N)+(z*NN)];
+		to[x+(y<<yshift)+(z<<zshift)] = from[x+(y<<yshift)+(z<<zshift)];
 	}
 }
 
@@ -531,6 +531,8 @@ int main(int argc, char **argv)
 	cudaEvent_t stop;
 	float compute_time;
 	double gflops;
+	unsigned int yshift = (unsigned int) log2((double) config.n);
+	unsigned int zshift = (unsigned int) log2((double) config.n * config.n);
 	assert(cudaSuccess == cudaEventCreate(&start));
 	assert(cudaSuccess == cudaEventCreate(&stop));
 	assert(cudaSuccess == cudaMalloc((void**) &d_z_1, float_mem));
@@ -543,17 +545,17 @@ int main(int argc, char **argv)
 	{
 		if (config.dim_3d)
 		{
-			iterate3d<<<grid, block>>>(d_z_1, d_z_2, d_read_only, config.n, config.n * config.n);
+			iterate3d<<<grid, block>>>(d_z_1, d_z_2, d_read_only, yshift, zshift, config.n, config.n * config.n);
 			cudaThreadSynchronize();
-			iterate3d<<<grid, block>>>(d_z_2, d_z_1, d_read_only, config.n, config.n * config.n);
+			iterate3d<<<grid, block>>>(d_z_2, d_z_1, d_read_only, yshift, zshift, config.n, config.n * config.n);
 			cudaThreadSynchronize();
 			if (i % 50 == 0) { printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bIterations: %u", i); }
 		}
 		else
 		{
-			iterate2d<<<grid, block>>>(d_z_1, d_z_2, d_read_only, config.n);
+			iterate2d<<<grid, block>>>(d_z_1, d_z_2, d_read_only, yshift, config.n);
 			cudaThreadSynchronize();
-			iterate2d<<<grid, block>>>(d_z_2, d_z_1, d_read_only, config.n);
+			iterate2d<<<grid, block>>>(d_z_2, d_z_1, d_read_only, yshift, config.n);
 			cudaThreadSynchronize();
 			if (i % 500 == 0) { printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bIterations: %u", i); }
 		}
