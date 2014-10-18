@@ -476,18 +476,25 @@ int main(int argc, char **argv)
 	{
 		case 2048:
 			block.x = 32; block.y = 32; block.z = 2;
+			break;
 		case 1024:
 			block.x = 32; block.y = 32; block.z = 1;
+			break;
 		case 512:
 			block.x = 16; block.y = 16; block.z = 2;
+			break;
 		case 256:
 			block.x = 16; block.y = 16; block.z = 1;
+			break;
 		case 128:
 			block.x =  8; block.y =  8; block.z = 2;
+			break;
 		case 64:
 			block.x =  8; block.y =  8; block.z = 1;
+			break;
 		case 32:
 			block.x =  4; block.y =  4; block.z = 2;
+			break;
 	}
 	if (!config.dim_3d)
 	{
@@ -540,8 +547,7 @@ int main(int argc, char **argv)
 			cudaThreadSynchronize();
 			iterate3d<<<grid, block>>>(d_z_2, d_z_1, d_read_only, config.n, config.n * config.n);
 			cudaThreadSynchronize();
-			printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bIterations: %u", i);
-			fflush(stdout);
+			if (i % 50 == 0) { printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bIterations: %u", i); }
 		}
 		else
 		{
