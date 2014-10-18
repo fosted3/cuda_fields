@@ -16,7 +16,7 @@ $(CUDA_BIN): build/cuda_fields.o
 
 build/cuda_fields.o: src/cuda_fields.cu
 	mkdir -p $(DIRS)
-	$(CUDA_CC) -ccbin $(C_CC) -I$(INCLUDES) -m64 -gencode $(COMPUTE) -o build/cuda_fields.o -c src/cuda_fields.cu
+	$(CUDA_CC) -ccbin $(C_CC) -g -I$(INCLUDES) -m64 -gencode $(COMPUTE) -o build/cuda_fields.o -c src/cuda_fields.cu
 
 $(CPP_BIN): build/image_write.o
 	$(CPP_CC) build/image_write.o -o $(CPP_BIN) $(LDFLAGS)
